@@ -1,134 +1,16 @@
-/*  [CS:S/CS:GO] CT Bans
-    Copyright (C) 2011-2017 by databomb
+/*
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+[CS:S/CS:GO] CT Bans
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+Original by databomb (https://forums.alliedmods.net/showthread.php?p=1544101)
+Fixed by azalty (STEAM_0:1:57298004 - github.com/azalty/sm-ct-bans)
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-	***************************************************************************
-
-	Description:
-	Allows admins to restrict access to the CT team from those who violate the server's rules. Designed for specific usage in Jailbreak environments.
-
-	Features:
-	- CT Bans are stored in the ClientPrefs database and survive map changes, re-joins, and server crashes.
-	- The Rage Ban feature allows admins to CT ban rage quitters who break the server's rules and then quickly disconnect.
-	- You may give a timed CT ban which will work based on in minutes spent alive (so idlers in spectate or those who suicide at the beginning of the round will not be working toward an unban.)
-	- The timed CT bans are stored in a SQL table for stateful access.
-	- The plugin logs CT ban to a SQL table in addition to your regular SM logs.
-	- Re-displays the team selection screen after an improper selection was made.
-	- SM Menu integration for the rageban and ctban commands.
-	- Displays helpful message to users who are CT banned when they join the server.
-	- SM Translations support.
-	- Custom reasons permitted (configs/ctban_reasons.ini).
-	- Custom lengths permitted (configs/ctban_times.ini).
-
-	Installation:
-	Place the ctban.phrases.txt file in your addons/sourcemod/translations directory.
-	Place the sm_ctban.smx file in your addons/sourcemod/plugins directory.
-	Check your logs/server-console after the initial load for any SQL errors. If you have any SQL errors check your addons/sourcemod/configs/databases.cfg file and verify you can connect using the drivers you have specified.
-	Upgrade: Delete cfg/sourcemod/ctban.cfg and re-configure convars after the file is re-created.
-	Optional: Generate custom reasons list by creating a simple text file (addons/sourcemod/configs/ctban_reasons.ini) with 1 reason per line.
-
-	Command Usage:
-
-	sm_ctban <player> <time> <optional: reason>
-	Bans the selected player from joining the CT team.
-
-	sm_removectban <player> | sm_unctban <player>
-	Removes the CT ban on the selected player.
-
-	sm_isbanned <player>
-	Reports back the status of the current player's CT ban and the time remaining on the ban, if any.
-
-	sm_rageban
-	Brings up a menu so you may choose a recently disconnected player to permanently CT ban.
-
-	sm_ctban_offline <steamid>
-	Bans the given Steam Id from playing on the CT team.
-
-	sm_removectban_offline <steamid> | sm_unctban_offline <steamid>
-	Unbans the given Steam Id from the CT team.
-
-	sm_reset_ctban_cookies <'force'>
-	Resets the entire CTBan cookie database.
-
-	sm_forcect <player>
-	Overrides any CTBans and swaps a player to CT team.
-
-	sm_unforcect <player>
-	Removes overrides and moves player to T team.
-
-	sm_isbanned_offline <steamid>
-	Reports back the status of the target Steam Id from the ban database.
-
-	sm_change_ctban_time <player> <time>
-	Changes an existing CTBan to the new time specified. 0 would be permanently CTBan.
-
-	sm_ctbanlist
-	Displays a menu of active players who are CT Banned.
-
-	Settings:
-	sm_ctban_soundfile, <path>: The path to the soundfile to play when denying a team-change request. Set to "" to disable.
-	sm_ctban_joinbanmsg, <message>: This message is appended to a time-stamp when a CT banned user joins the server.
-	sm_ctban_table_prefix, <prefix>: This prefix will be added in front of the table names.
-	sm_ctban_database_driver, <driver>: This specifies which driver to use from database.cfg
-	sm_ctban_force_reason, [0,1]: Specifies whether a reason is required for the CT Ban command.
-	sm_ctban_checkctbans_adminflags, [a-z]: Specifies the admin flag levels that may use the !ctbanlist and !isbanned command targeting anyone. Blank allows all players access on everyone.
-	sm_ctban_isbanned_selftarget, [0,1]: Specifies whether a non-admin can target themselves using the !isbanned command.
-	sm_ctban_respawn, [0,1]: Specifies whether to respawn players after team changes.
-
-	Special Thanks (Development):
-	Azelphur for snippets of cross-mod code.
-	Kigen for the idea of CT banning based on time spent alive.
-	oaaron99 for the idea of smart !ctban menu re-directs.
-	Bara for include file ideas and lengths code.
-
-	Future Considerations:
-	Using API-- Steam Group CTBans
-	Using API-- New Admin Level and Command for CT Banning for Only Small Durations
-
-	Change Log:
-	2.0.3 Adds !rageban console user support. Fixed bug where !rageban was not permanent. Fixed bug with custom times (configs/ctban_times.ini) not displaying menu options correctly.
-	      Adds multi-targeting filters for other admin commands: @ctban @!ctban and @noctbans (@noctbans specifies players who have never had a CT Ban).
-	2.0.2 Adds SQLite support. Updated include file: Adds more intelligent #tryinclude and pre-compile directives.
-	      Alerts admins if someone is swapped to CT without !forcect. Added custom times options (configs/ctban_times.ini).
-		  Times file should be formatted as a Key Values file with each section having the number of minutes and a description such as: "90" "1 Hour 30 Minutes"
-	2.0.1 Bug fixes in UnForceCT, ForceCT, and OnClientAuthorized which were each generating errors.
-	2.0.0 Ported to the new syntax. Translation file updated. CS:GO Fixes bug where mp_force_pick_time could assign a banned player to CT. Made !ctban open menus if more info is needed.
-		  CS:GO Fixes incompatibility with Zephyrus's Team Limit Bypass plugin. Adds spawn check to verify CTBans. Added !forcect/!unforcect to override CTBan and swap players.
-		  Allows custom reasons (configs/ctban_reasons.ini). Allows non-admins to use !isbanned. Added command to reset all CT Ban cookies. Added Player Commands menu for !unctban.
-		  Adds CT Ban to !admin Player Commands menu. Allowed fallback for !isbanned to return ban info even if database log entries were missing. Added !ctbanlist command.
-		  Added CT Ban reason to !ctban chat output where possible. Changed from [SM] to [CTBAN] chat tag and added colors. Removing compile option USESQL (Now Always Uses SQL).
-		  Added !isbanned_offline to find CT Ban info of offline players. !ctban_offline and !unctban_offline now update the log database records.
-		  Added convar sm_ctban_respawn to allow respawns after team swaps due to !ctban or !forcect. Added !change_ctban_time command to edit the time remaining on CTBans.
-		  Added API (ctban.inc) for 3rd-party plugin interfaces. The convar sm_ctban_enable is being removed (disable the plugin to disable functionality).
-		  Upgraded database log table to include an auto incrementing primary key (ban_id) -- automatically upgrades from tables.
-		  Added check for enforcing CTBans if the plugin is loaded late.
-	1.6.2 Translation file updated. Added admin, time, reason information for !isbanned. Show !rageban results in chat to players. Added ConVar for forcing !ctban reason.
-	1.6.1.4 Fixed bug preventing console CT bans (thanks Kailo!)
-	1.6.1.3 Fixed bug with EscapeString function which caused query failures
-	1.6.1.2 Fixed SQL Injection vulnerability
-	1.6.1.1 Fixed problem in UTIL_TeamMenu()
-	1.6.1 Support for new SM1.4 natives, Added config file generation
-	1.6.0 Added support for new SM1.4 natives
-	1.5.0 Initial public release
-	1.4.4 Stable internal build
 */
 
 // Compilation Settings
 //#define CTBAN_DEBUG
 
-#define PLUGIN_VERSION "2.0.3"
+#define PLUGIN_VERSION "2.0.4"
 
 #include <sourcemod>
 #include <clientprefs>
@@ -385,10 +267,10 @@ eDatabaseType g_eDatabaseType = e_Unknown;
 public Plugin myinfo =
 {
 	name = "CT Ban",
-	author = "databomb",
+	author = "databomb, azalty",
 	description = "Allows admins to ban players from joining the CT team.",
 	version = PLUGIN_VERSION,
-	url = "https://forums.alliedmods.net/showthread.php?t=166080"
+	url = "github.com/azalty/sm-ct-bans"
 };
 
 public APLRes AskPluginLoad2(Handle hMyself, bool bLate, char[] sError, int iErr_Max)
@@ -430,7 +312,7 @@ public void OnPluginStart()
 	RegAdminCmd(RAGEBAN_COMMAND, Command_RageBan, RAGEBAN_ADMIN_LEVEL, "sm_rageban <player> - Allows you to ban those who rage quit.");
 	RegAdminCmd("sm_ctban_offline", Command_Offline_CTBan, ADMFLAG_KICK, "sm_ctban_offline <steamid> - Allows admins to CT Ban players who have long left the server using their Steam Id.");
 	RegAdminCmd("sm_unctban_offline", Command_Offline_UnCTBan, ADMFLAG_KICK, "sm_unctban_offline <steamid> - Allows admins to remove CT Bans on players who have long left the server using their Steam Id.");
-	RegAdminCmd("sm_removectban_offline", Command_Offline_UnCTBan, ADMFLAG_KICK, "sm_unctban_offline <steamid> - Allows admins to remove CT Bans on players who have long left the server using their Steam Id.");
+	RegAdminCmd("sm_removectban_offline", Command_Offline_UnCTBan, ADMFLAG_KICK, "sm_removectban_offline <steamid> - Allows admins to remove CT Bans on players who have long left the server using their Steam Id.");
 	RegAdminCmd("sm_reset_ctban_cookies", Command_ResetCookies, ADMFLAG_ROOT, "sm_reset_ctban_cookies <'force'> - Allows the admin to reset all CTBan cookies to be unbanned.");
 	RegAdminCmd(FORCECT_COMMAND, Command_ForceCT, FORCECT_ADMIN_LEVEL, "sm_forcect <player> - Temporarily overrides CTBan status and swaps player to CT team.");
 	RegAdminCmd(UNFORCECT_COMMAND, Command_UnForceCT, UNFORCECT_ADMIN_LEVEL, "sm_unforcect <player> - Removes any temporary overrides and removes player from CT team.");
@@ -465,10 +347,13 @@ public void OnPluginStart()
 		// Check if we need to remove anyone from CT team immediately
 		if (IsClientInGame(iIndex))
 		{
-			if (GetClientTeam(iIndex) == CS_TEAM_CT && GetCTBanStatus(iIndex))
+			// mid game plugin loading FIXED
+			if (GetCTBanStatus(iIndex))
 			{
-				EnforceCTBan(iIndex);
-
+				if (GetClientTeam(iIndex) == CS_TEAM_CT)
+				{
+					EnforceCTBan(iIndex);
+				}
 				// Gather the time component, if needed
 				if (IsClientAuthorized(iIndex))
 				{
@@ -2521,16 +2406,28 @@ public void OnClientDisconnect(int iClient)
 	{
 		// remove them from the local array
 		RemoveFromArray(gA_TimedBanLocalList, iBannedArrayIndex);
-
-		// make a datapack for the next query
-		Handle hDisconnectPack = CreateDataPack();
-		WritePackCell(hDisconnectPack, iClient);
-		WritePackString(hDisconnectPack, sDisconnectSteamID);
-
+		
 		// update steam array
+		// Time problem fixed!
 		char sQuery[QUERY_MAXLENGTH];
-		Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_SELECT_BANTIME, g_sTimesTableName, sDisconnectSteamID);
-		SQL_TQuery(gH_BanDatabase, DB_Callback_ClientDisconnect, sQuery, hDisconnectPack);
+		if (gA_LocalTimeRemaining[iClient] <= ZERO)
+		{
+			// remove steam array
+			Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_DELETE, g_sTimesTableName, sDisconnectSteamID);
+			SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
+
+			Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_EXPIRE, g_sLogTableName, sDisconnectSteamID);
+			SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
+		}
+		else
+		{
+			// update the time
+			Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_UPDATE, g_sTimesTableName, gA_LocalTimeRemaining[iClient], sDisconnectSteamID);
+			SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
+
+			Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_UPDATE, g_sLogTableName, gA_LocalTimeRemaining[iClient], sDisconnectSteamID);
+			SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
+		}
 	}
 
 	// if there are no admins left then swap all the !forcect players back to T team!
@@ -2553,60 +2450,6 @@ public void OnClientDisconnect(int iClient)
 		for (int iIndex = ONE; iIndex <= MaxClients; iIndex++)
 		{
 			UnForceCTActions(ZERO, iIndex, true);
-		}
-	}
-}
-
-public void DB_Callback_ClientDisconnect(Handle hOwner, Handle hCallback, const char[] sError, any hDataPack)
-{
-	if (hCallback == INVALID_HANDLE)
-	{
-		LogError("Error with query on client disconnect: %s", sError);
-		CloseHandle(hDataPack);
-	}
-	else
-	{
-		ResetPack(hDataPack);
-		int iClient = ReadPackCell(hDataPack);
-		char sAuthID[FIELD_AUTHID_MAXLENGTH];
-		ReadPackString(hDataPack, sAuthID, sizeof(sAuthID));
-
-		int iRowCount = SQL_GetRowCount(hCallback);
-		if (iRowCount)
-		{
-			#if defined CTBAN_DEBUG
-			SQL_FetchRow(hCallback);
-			int iBanTimeRemaining = SQL_FetchInt(hCallback, CLIENT_DISCONNECT_CB_FIELD_TIMELEFT);
-
-			if (IsClientInGame(iClient))
-			{
-				LogMessage("SQL: %N disconnected with %i time remaining on ban", iClient, iBanTimeRemaining);
-			}
-			else
-			{
-				LogMessage("SQL: %i client index disconnected with %i time remaining on ban", iClient, iBanTimeRemaining);
-			}
-			#endif
-
-			char sQuery[QUERY_MAXLENGTH];
-			if (gA_LocalTimeRemaining[iClient] <= ZERO)
-			{
-				// remove steam array
-				Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_DELETE, g_sTimesTableName, sAuthID);
-				SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
-
-				Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_EXPIRE, g_sLogTableName, sAuthID);
-				SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
-			}
-			else
-			{
-				// update the time
-				Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_UPDATE, g_sTimesTableName, gA_LocalTimeRemaining[iClient], sAuthID);
-				SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
-
-				Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_UPDATE, g_sLogTableName, gA_LocalTimeRemaining[iClient], sAuthID);
-				SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
-			}
 		}
 	}
 }
