@@ -10,7 +10,7 @@ Fixed by azalty (STEAM_0:1:57298004 - github.com/azalty/sm-ct-bans)
 // Compilation Settings
 //#define CTBAN_DEBUG
 
-#define PLUGIN_VERSION "2.0.4"
+#define PLUGIN_VERSION "2.0.5"
 
 #include <sourcemod>
 #include <clientprefs>
@@ -1561,23 +1561,33 @@ public Action Timer_CheckTimedCTBans(Handle hTimer)
 
 public void OnConfigsExecuted()
 {
-	#if defined CTBAN_DEBUG
-	LogMessage("Connecting to clientprefs database");
-	#endif
-
-	SQL_TConnect(CP_Callback_Connect, "clientprefs");
-
-	char sDatabaseDriver[64];
-	GetConVarString(gH_Cvar_Database_Driver, sDatabaseDriver, sizeof(sDatabaseDriver));
-
-	#if defined CTBAN_DEBUG
-	LogMessage("Connecting to log database");
-	#endif
-
-	SQL_TConnect(DB_Callback_Connect, sDatabaseDriver);
-
+	// Fixed: Since OnConfigsExecuted is executed every map change, don't try to create a new connection if our old one still works.
+	// Previously, this plugin created duplicate connections (which is bad)
+	if (!gH_CP_DataBase)
+	{
+		#if defined CTBAN_DEBUG
+		LogMessage("Connecting to clientprefs database");
+		#endif
+	
+		SQL_TConnect(CP_Callback_Connect, "clientprefs");
+	}
+	
+	if (!gH_BanDatabase)
+	{
+		char sDatabaseDriver[64];
+		GetConVarString(gH_Cvar_Database_Driver, sDatabaseDriver, sizeof(sDatabaseDriver));
+	
+		#if defined CTBAN_DEBUG
+		LogMessage("Connecting to log database");
+		#endif
+	
+		SQL_TConnect(DB_Callback_Connect, sDatabaseDriver);
+	}
+	
+	// Still parse & update ctban_reasons.ini in case they got updated. Avoids us to reload the plugin.
 	ParseCTBanReasonsFile(gH_DArray_Reasons);
 	
+	// This handle is closed if already open, so no memory leaks here. Avoids us to reload the plugin.
 	gH_KV_BanLengths = ParseCTBanLengthsFile(gH_KV_BanLengths);
 }
 
