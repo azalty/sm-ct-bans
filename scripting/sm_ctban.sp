@@ -10,7 +10,7 @@ Fixed by azalty (STEAM_0:1:57298004 - github.com/azalty/sm-ct-bans)
 // Compilation Settings
 //#define CTBAN_DEBUG
 
-#define PLUGIN_VERSION "2.0.5"
+#define PLUGIN_VERSION "2.0.6"
 
 #include <sourcemod>
 #include <clientprefs>
@@ -310,7 +310,7 @@ public void OnPluginStart()
 	RegAdminCmd(REMOVECTBAN_COMMAND, Command_UnCTBan, UNCTBAN_ADMIN_LEVEL, "sm_removectban <player> - Unrestricts a player from being a CT.");
 	RegAdminCmd("sm_unctban", Command_UnCTBan, UNCTBAN_ADMIN_LEVEL, "sm_unctban <player> - Unrestricts a player from being a CT.");
 	RegAdminCmd(RAGEBAN_COMMAND, Command_RageBan, RAGEBAN_ADMIN_LEVEL, "sm_rageban <player> - Allows you to ban those who rage quit.");
-	RegAdminCmd("sm_ctban_offline", Command_Offline_CTBan, ADMFLAG_KICK, "sm_ctban_offline <steamid> - Allows admins to CT Ban players who have long left the server using their Steam Id.");
+	RegAdminCmd("sm_ctban_offline", Command_Offline_CTBan, ADMFLAG_KICK, "sm_ctban_offline <\"steamid\"> <optional: time> <optional: reason> - Allows admins to CT Ban players who have long left the server using their Steam Id.");
 	RegAdminCmd("sm_unctban_offline", Command_Offline_UnCTBan, ADMFLAG_KICK, "sm_unctban_offline <steamid> - Allows admins to remove CT Bans on players who have long left the server using their Steam Id.");
 	RegAdminCmd("sm_removectban_offline", Command_Offline_UnCTBan, ADMFLAG_KICK, "sm_removectban_offline <steamid> - Allows admins to remove CT Bans on players who have long left the server using their Steam Id.");
 	RegAdminCmd("sm_reset_ctban_cookies", Command_ResetCookies, ADMFLAG_ROOT, "sm_reset_ctban_cookies <'force'> - Allows the admin to reset all CTBan cookies to be unbanned.");
@@ -1061,41 +1061,68 @@ public void CP_Callback_ResetAllCTBans(Handle hOwner, Handle hCallback, const ch
 
 public Action Command_Offline_CTBan(int iClient, int iArgs)
 {
-	if (g_bAuthIdNativeExists)
-	{
-		char sAuthId[FIELD_AUTHID_MAXLENGTH];
-		GetCmdArgString(sAuthId, sizeof(sAuthId));
-
-		if (IsAuthIdConnected(sAuthId))
-		{
-			ReplyToCommand(iClient, g_sChatBanner, "Unable to target");
-		}
-		else
-		{
-			PerformOfflineCTBan(sAuthId, iClient);
-		}
-	}
-	else
+	if (!g_bAuthIdNativeExists)
 	{
 		ReplyToCommand(iClient, g_sChatBanner, "Feature Not Available");
+		return Plugin_Handled;
 	}
+	if (!iArgs)
+	{
+		ReplyToCommand(iClient, g_sChatBanner, "Command Usage", "sm_ctban_offline <\"steamid\"> <optional: time> <optional: reason>");
+		return Plugin_Handled;
+	}
+	
+	char sAuthId[FIELD_AUTHID_MAXLENGTH];
+	GetCmdArg(1, sAuthId, sizeof(sAuthId));
+	if (IsAuthIdConnected(sAuthId))
+	{
+		ReplyToCommand(iClient, g_sChatBanner, "Unable to target");
+		return Plugin_Handled;
+	}
+	
+	int iTime;
+	char sReason[FIELD_REASON_MAXLENGTH];
+	if (iArgs >= 2)
+	{
+		char sTime[MAX_TIME_ARG_LENGTH];
+		GetCmdArg(2, sTime, sizeof(sTime));
+		iTime = StringToInt(sTime);
+		if (iArgs == 3)
+			GetCmdArg(3, sReason, sizeof(sReason));
+		else if (iArgs > 3) // In case the user didn't use quotes for the reason
+		{
+			char sArgPart[FIELD_REASON_MAXLENGTH];
+			for (int iArg = 3; iArg <= iArgs; iArg++)
+			{
+				GetCmdArg(iArg, sArgPart, sizeof(sArgPart));
+				Format(sReason, sizeof(sReason), "%s %s", sReason, sArgPart);
+			}
+			// Remove the space at the beginning
+			TrimString(sReason);
+		}
+	}
+	
+	PerformOfflineCTBan(sAuthId, iClient, iTime, sReason);
 	return Plugin_Handled;
 }
 
-void PerformOfflineCTBan(char[] sAuthId, int iAdmin)
+/*
+Performs a CTBan on a disconnected player using its SteamID (AuthId)
+char sAuthId		The SteamID2 of the player we want to ban. Make sure this player isn't connected!
+int iAdmin			The client index of the admin or 0 for server or CALLER_NATIVE.
+int iTime			Ban duration in minutes. If unspecified, defaults to perma-ban.
+char sReason		Ban reason. If unspecified, defaults to REASON_OFFLINECTBAN.
+*/
+void PerformOfflineCTBan(char[] sAuthId, int iAdmin, int iTime = CTBAN_PERM_BAN_LENGTH, char sReason[FIELD_REASON_MAXLENGTH] = "")
 {
 	SetAuthIdCookie(sAuthId, g_CT_Cookie, COOKIE_BANNED_STRING);
-
+	
 	char sAdminSteamID[FIELD_AUTHID_MAXLENGTH];
 	if (iAdmin > ZERO)
-	{
 		GetClientAuthId(iAdmin, AuthId_Steam2, sAdminSteamID, sizeof(sAdminSteamID));
-	}
 	else
-	{
 		sAdminSteamID = CONSOLE_AUTHID;
-	}
-
+	
 	int iTimeStamp = GetTime();
 	char sQuery[QUERY_MAXLENGTH];
 	char sTempName[FIELD_NAME_MAXLENGTH];
@@ -1105,33 +1132,33 @@ void PerformOfflineCTBan(char[] sAuthId, int iAdmin)
 	char sEscapedAdminName[MAX_SAFE_ESCAPE_QUERY(FIELD_NAME_MAXLENGTH)];
 	if (iAdmin > ZERO)
 	{
-		Format(sTempName, sizeof(sTempName), "%N", iAdmin);
+		GetClientName(iAdmin, sTempName, sizeof(sTempName));
 		SQL_EscapeString(gH_BanDatabase, sTempName, sEscapedAdminName, sizeof(sEscapedAdminName));
 	}
 	else
-	{
 		sEscapedAdminName = CONSOLE_USER_NAME;
-	}
 	
-	Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_INSERT, g_sLogTableName, iTimeStamp, sEscapedPerpAuthId, OFFLINE_NAME_UNAVAILBLE, sAdminSteamID, sEscapedAdminName, CTBAN_PERM_BAN_LENGTH, CTBAN_PERM_BAN_LENGTH, REASON_OFFLINECTBAN);
-
+	char sEscapedReason[MAX_SAFE_ESCAPE_QUERY(FIELD_REASON_MAXLENGTH)];
+	if (sReason[0] == '\0') // equal to (sReason == ""), '\0' is the null terminator, it indicates the end of the string. If the string ends at the first char, it is empty.
+		sEscapedReason = REASON_OFFLINECTBAN;
+	else
+		SQL_EscapeString(gH_BanDatabase, sReason, sEscapedReason, sizeof(sEscapedReason));
+	
+	Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_INSERT, g_sLogTableName, iTimeStamp, sEscapedPerpAuthId, OFFLINE_NAME_UNAVAILBLE, sAdminSteamID, sEscapedAdminName, iTime, iTime, sEscapedReason);
+	
 	#if defined CTBAN_DEBUG
 	LogMessage("log query: %s", sQuery);
 	#endif
-
+	
 	SQL_TQuery(gH_BanDatabase, DB_Callback_CTBan, sQuery, iAdmin);
 
-	if (iAdmin == CALLER_NATIVE)
-	{
-		// No response
-	}
-	{
+	if (iAdmin != CALLER_NATIVE)
 		ReplyToCommand(iAdmin, g_sChatBanner, "Banned AuthId", sAuthId);
-	}
-
+	
 	Call_StartForward(g_hFrwd_OnCTBan_Offline);
 	Call_PushString(sAuthId);
 	Call_PushCell(iAdmin);
+	// I don't want to mess with forwards&natives since I could break other plugins, so I won't add anything, for now (even though we now have iTime and sReason).
 	Call_Finish();
 }
 
@@ -1362,20 +1389,15 @@ public Action Command_Offline_UnCTBan(int iClient, int iArgs)
 	{
 		char sAuthId[FIELD_AUTHID_MAXLENGTH];
 		GetCmdArgString(sAuthId, sizeof(sAuthId));
+		ReplaceString(sAuthId, sizeof(sAuthId), "\"", ""); // removes quotes, quotes support
 
 		if (IsAuthIdConnected(sAuthId))
-		{
 			ReplyToCommand(iClient, g_sChatBanner, "Unable to target");
-		}
 		else
-		{
 			PerformOfflineUnCTBan(sAuthId, iClient);
-		}
 	}
 	else
-	{
 		ReplyToCommand(iClient, g_sChatBanner, "Feature Not Available");
-	}
 
 	return Plugin_Handled;
 }
@@ -2653,58 +2675,53 @@ public Action Command_CTBan(int iClient, int iArgs)
 	if (iTargetCount < ONE)
 	{
 		ReplyToTargetError(iClient, iTargetCount);
+		return Plugin_Handled;
 	}
-	else
+	
+	int iTarget = aiTargetList[ZERO];
+	
+	if(!iTarget || !IsClientInGame(iTarget))
+		return Plugin_Handled;
+	
+	if (GetCTBanStatus(iTarget, iClient))
 	{
-		int iTarget = aiTargetList[ZERO];
-
-		if(iTarget && IsClientInGame(iTarget))
-		{
-			if (GetCTBanStatus(iTarget, iClient))
-			{
-				ReplyToCommand(iClient, g_sChatBanner, "Already CT Banned", iTarget);
-			}
-			else
-			{
-				if (iArgs == CTBAN_ARG_PLAYER)
-				{
-					int iTargetUserId = GetClientUserId(iTarget);
-					DisplayCTBanTimeMenu(iClient, iTargetUserId);
-					return Plugin_Handled;
-				}
-
-				char sBanTime[MAX_TIME_ARG_LENGTH];
-				GetCmdArg(CTBAN_ARG_TIME, sBanTime, sizeof(sBanTime));
-				int iBanTime = StringToInt(sBanTime);
-
-				if (GetConVarBool(gH_Cvar_Force_Reason) && iArgs == CTBAN_ARG_TIME)
-				{
-					int iTargetUserId = GetClientUserId(iTarget);
-					DisplayCTBanReasonMenu(iClient, iTargetUserId, iBanTime);
-					return Plugin_Handled;
-				}
-
-				char sReasonStr[FIELD_REASON_MAXLENGTH];
-				char sArgPart[FIELD_REASON_MAXLENGTH];
-				for (int iArg = CTBAN_ARG_REASON; iArg <= iArgs; iArg++)
-				{
-					GetCmdArg(iArg, sArgPart, sizeof(sArgPart));
-					Format(sReasonStr, sizeof(sReasonStr), "%s %s", sReasonStr, sArgPart);
-				}
-				// Remove the space at the beginning
-				TrimString(sReasonStr);
-
-				if (GetConVarBool(gH_Cvar_Force_Reason) && !strlen(sReasonStr))
-				{
-					ReplyToCommand(iClient, g_sChatBanner, "Reason Required");
-				}
-				else
-				{
-					PerformCTBan(iTarget, iClient, iBanTime, _, sReasonStr);
-				}
-			}
-		}
+		ReplyToCommand(iClient, g_sChatBanner, "Already CT Banned", iTarget);
+		return Plugin_Handled;
 	}
+	
+	if (iArgs == CTBAN_ARG_PLAYER)
+	{
+		int iTargetUserId = GetClientUserId(iTarget);
+		DisplayCTBanTimeMenu(iClient, iTargetUserId);
+		return Plugin_Handled;
+	}
+	
+	char sBanTime[MAX_TIME_ARG_LENGTH];
+	GetCmdArg(CTBAN_ARG_TIME, sBanTime, sizeof(sBanTime));
+	int iBanTime = StringToInt(sBanTime);
+	
+	if (GetConVarBool(gH_Cvar_Force_Reason) && iArgs == CTBAN_ARG_TIME)
+	{
+		int iTargetUserId = GetClientUserId(iTarget);
+		DisplayCTBanReasonMenu(iClient, iTargetUserId, iBanTime);
+		return Plugin_Handled;
+	}
+	
+	char sReasonStr[FIELD_REASON_MAXLENGTH];
+	char sArgPart[FIELD_REASON_MAXLENGTH];
+	for (int iArg = CTBAN_ARG_REASON; iArg <= iArgs; iArg++)
+	{
+		GetCmdArg(iArg, sArgPart, sizeof(sArgPart));
+		Format(sReasonStr, sizeof(sReasonStr), "%s %s", sReasonStr, sArgPart);
+	}
+	// Remove the space at the beginning
+	TrimString(sReasonStr);
+	
+	if (GetConVarBool(gH_Cvar_Force_Reason) && !strlen(sReasonStr))
+		ReplyToCommand(iClient, g_sChatBanner, "Reason Required");
+	else
+		PerformCTBan(iTarget, iClient, iBanTime, _, sReasonStr);
+	
 	return Plugin_Handled;
 }
 
@@ -3394,15 +3411,12 @@ public Action Command_Offline_IsBanned(int iClient, int iArgs)
 	char sPerpSteamID[FIELD_AUTHID_MAXLENGTH];
 	GetCmdArgString(sPerpSteamID, sizeof(sPerpSteamID));
 	TrimString(sPerpSteamID);
+	ReplaceString(sPerpSteamID, sizeof(sPerpSteamID), "\"", ""); // removes quotes, quotes support
 
 	if (IsAuthIdConnected(sPerpSteamID))
-	{
 		ReplyToCommand(iClient, g_sChatBanner, "Unable to target");
-	}
 	else
-	{
 		ProcessIsBannedOffline(iClient, sPerpSteamID);
-	}
 
 	return Plugin_Handled;
 }

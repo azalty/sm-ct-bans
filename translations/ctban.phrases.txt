@@ -195,28 +195,28 @@
 		"#format"	"{1:N},{2:s},{3:s},{4:s}"
 		"en"		"{1} banned from CT indefinitely by admin {2} on {3}. ({4})"
 		"hu"		"{1} végleg kitiltva a CT csapatból {2} adminisztrátor által {3} időpontban. ({4})"
-		"fr"		"{1} a été indéfiniment banni des CT par l'Administrateur {2} sur {3}. ({4})"
+		"fr"		"{1} a été indéfiniment banni des CT par l'Administrateur {2} le {3}. ({4})"
 	}
 	"IsBanned Temporary"
 	{
 		"#format"	"{1:N},{2:d},{3:s},{4:s},{5:s}"
 		"en"		"{1} banned from CT for {2} minutes spent alive by admin {3} on {4}. ({5})"
 		"hu"		"{1} kitiltva a CT csapatból {2} életben töltött percre {3} adminisztrátor által {4} időpontban. ({5})"
-		"fr"		"{1} a été banni pour {2} minutes passées en vie par l'Administrateur {3} sur {4}. ({5})"
+		"fr"		"{1} a été banni pour {2} minutes passées en vie par l'Administrateur {3} le {4}. ({5})"
 	}
 	"IsBanned Permanent String Name"
 	{
 		"#format"	"{1:s},{2:s},{3:s},{4:s}"
 		"en"		"{1} banned from CT indefinitely by admin {2} on {3}. ({4})"
 		"hu"		"{1} végleg kitiltva a CT csapatból {2} adminisztrátor által {3} időpontban. ({4})"
-		"fr"		"{1} a été indéfiniment banni des CT par l'Administrateur {2} sur {3}. ({4})"
+		"fr"		"{1} a été indéfiniment banni des CT par l'Administrateur {2} le {3}. ({4})"
 	}
 	"IsBanned Temporary String Name"
 	{
 		"#format"	"{1:s},{2:d},{3:s},{4:s},{5:s}"
 		"en"		"{1} banned from CT for {2} minutes spent alive by admin {3} on {4}. ({5})"
 		"hu"		"{1} kitiltva a CT csapatból {2} életben töltött percre {3} adminisztrátor által {4} időpontban. ({5})"
-		"fr"		"{1} a été banni pour {2} minutes passées en vie par l'Administrateur {3} sur {4}. ({5})"
+		"fr"		"{1} a été banni pour {2} minutes passées en vie par l'Administrateur {3} le {4}. ({5})"
 	}
 	"Reason Required"
 	{
@@ -316,6 +316,6 @@
 		"#format"	"{1:N}"
 		"en"		"{1} was put on CT but is CT Banned. Use !forcect to temporarily override a CT Ban."
 		"hu"		"{1} áthelyezve CT csapatba, de ki van tiltva onnan. Használd a !forcect parancsot, hogy átmenetileg felülírd a kitiltást."
-		"fr"		"{1} a été mis sur CT mais il est banni des CT. Utilise !forcect pour Outrepasser le CT Ban."
+		"fr"		"{1} a été mis en CT mais il est banni des CT. Utilisez !forcect pour Outrepasser le CT Ban."
 	}
 }
