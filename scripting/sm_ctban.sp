@@ -1151,6 +1151,23 @@ void PerformOfflineCTBan(char[] sAuthId, int iAdmin, int iTime = CTBAN_PERM_BAN_
 	#endif
 	
 	SQL_TQuery(gH_BanDatabase, DB_Callback_CTBan, sQuery, iAdmin);
+	
+	if (iTime > CTBAN_PERM_BAN_LENGTH)
+	{
+		// save in long-term database (already guaranteed to run only once per steam ID)
+		switch (g_eDatabaseType)
+		{
+			case e_SQLite:
+				Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_INSERT_SQLITE, g_sTimesTableName, sEscapedPerpAuthId, iTime);
+			default:
+				Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_INSERT_MYSQL, g_sTimesTableName, sEscapedPerpAuthId, iTime, iTime);
+		}
+		#if defined CTBAN_DEBUG
+		LogMessage("ctban query: %s", sQuery);
+		#endif
+
+		SQL_TQuery(gH_BanDatabase, DB_Callback_CTBan, sQuery, iAdmin);
+	}
 
 	if (iAdmin != CALLER_NATIVE)
 		ReplyToCommand(iAdmin, g_sChatBanner, "Banned AuthId", sAuthId);
