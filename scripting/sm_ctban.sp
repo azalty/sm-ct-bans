@@ -1,10 +1,24 @@
 /*
+Copyright (C) 2011-2017 by databomb
+Copyright (C) 2021 by azalty
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.
+If not, see <https://www.gnu.org/licenses/>.
+
+---
 
 [CS:S/CS:GO] CT Bans
 
 Original by databomb (https://forums.alliedmods.net/showthread.php?p=1544101)
 Fixed by azalty (STEAM_0:1:57298004 - github.com/azalty/sm-ct-bans)
-
 */
 
 // Compilation Settings
