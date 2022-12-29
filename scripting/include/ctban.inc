@@ -1,5 +1,6 @@
 /** [CS:S/CS:GO] CT Bans
  * Copyright (C) 2011-2017 by databomb
+ * Copyright (C) 2021-2022 by azalty
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -340,8 +341,10 @@ forward void CTBan_OnClientUnban(int iClient, int iAdmin);
  *
  * @param sAuthID		Client AuthID.
  * @param iAdmin		Admin index.
+ * @param iMinutes		CT Ban duration remaining in minutes spent alive (0 indicates permanent duration). *NEW AS OF 2.0.7*
+ * @param sReason		CT Ban reason (Note: Reason may be blank). *NEW AS OF 2.0.7*
  */
-forward void CTBan_OnClientBan_Offline(char[] sAuthID, int iAdmin);
+forward void CTBan_OnClientBan_Offline(char[] sAuthID, int iAdmin, int iMinutes, const char[] sReason);
 
 /**
  * Called when a client is Offline CT UnBanned.

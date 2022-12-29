@@ -1,6 +1,6 @@
 /*
 Copyright (C) 2011-2017 by databomb
-Copyright (C) 2021 by azalty
+Copyright (C) 2021-2022 by azalty
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the Free Software Foundation,
@@ -24,7 +24,7 @@ Fixed by azalty (STEAM_0:1:57298004 - github.com/azalty/sm-ct-bans)
 // Compilation Settings
 //#define CTBAN_DEBUG
 
-#define PLUGIN_VERSION "2.0.6"
+#define PLUGIN_VERSION "2.0.7"
 
 #include <sourcemod>
 #include <clientprefs>
@@ -400,6 +400,15 @@ public void OnPluginStart()
 	AddMultiTargetFilter("@noctbans", Filter_NeverCTBanned_Players, "Players who have never had a CT Ban", false);
 }
 
+public void OnPluginEnd()
+{
+	// Updates the ban time left for CTBanned clients when the plugin is unloaded (in case it is unloaded mid-round)
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		UpdateBanTimeDB(i);
+	}
+}
+
 public bool Filter_CTBanned_Players(const char[] sPattern, Handle hClients)
 {
 	for (int iIndex = ONE; iIndex <= MaxClients; iIndex++)
@@ -479,7 +488,7 @@ void CreateForwards()
 	g_hFrwd_OnUnforceCT = CreateGlobalForward("CTBan_OnUnforceCT", ET_Ignore, Param_Cell, Param_Cell);
 
 	g_hFrwd_OnCTBan = CreateGlobalForward("CTBan_OnClientBan", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_String);
-	g_hFrwd_OnCTBan_Offline = CreateGlobalForward("CTBan_OnClientBan_Offline", ET_Ignore, Param_String, Param_Cell);
+	g_hFrwd_OnCTBan_Offline = CreateGlobalForward("CTBan_OnClientBan_Offline", ET_Ignore, Param_String, Param_Cell, Param_Cell, Param_String);
 
 	g_hFrwd_OnUnCTBan = CreateGlobalForward("CTBan_OnClientUnban", ET_Ignore, Param_Cell, Param_Cell);
 	g_hFrwd_OnUnCTBan_Offline = CreateGlobalForward("CTBan_OnClientUnban_Offline", ET_Ignore, Param_String, Param_Cell);
@@ -1189,7 +1198,10 @@ void PerformOfflineCTBan(char[] sAuthId, int iAdmin, int iTime = CTBAN_PERM_BAN_
 	Call_StartForward(g_hFrwd_OnCTBan_Offline);
 	Call_PushString(sAuthId);
 	Call_PushCell(iAdmin);
-	// I don't want to mess with forwards&natives since I could break other plugins, so I won't add anything, for now (even though we now have iTime and sReason).
+	// I don't want to mess with forwards&natives since I could break other plugins, so I won't add anything for now (even though we now have iTime and sReason).
+	// UPDATE: I'm testing these new parameters. Let's see if it works!
+	Call_PushCell(iTime);
+	Call_PushString(sReason);
 	Call_Finish();
 }
 
@@ -2437,6 +2449,40 @@ public void OnClientPostAdminCheck(int iClient)
 	CreateTimer(COOKIE_INIT_CHECK_TIME, Timer_CheckBanCookies, iClient, TIMER_FLAG_NO_MAPCHANGE);
 }
 
+/**
+ * Updates the ban time left of a temporarily CTBanned client to the database.
+ * This function will have no impact if the player isn't temporarily CTBanned.
+ */
+void UpdateBanTimeDB(int iClient)
+{
+	if (FindValueInArray(gA_TimedBanLocalList, iClient) == -1)
+		return;
+	
+	char sSteamID[FIELD_AUTHID_MAXLENGTH];
+	GetClientAuthId(iClient, AuthId_Steam2, sSteamID, sizeof(sSteamID));
+	
+	// Time problem fixed!
+	char sQuery[QUERY_MAXLENGTH];
+	if (gA_LocalTimeRemaining[iClient] <= ZERO)
+	{
+		// remove steam array
+		Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_DELETE, g_sTimesTableName, sSteamID);
+		SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
+
+		Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_EXPIRE, g_sLogTableName, sSteamID);
+		SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
+	}
+	else
+	{
+		// update the time
+		Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_UPDATE, g_sTimesTableName, gA_LocalTimeRemaining[iClient], sSteamID);
+		SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
+
+		Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_UPDATE, g_sLogTableName, gA_LocalTimeRemaining[iClient], sSteamID);
+		SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
+	}
+}
+
 public void OnClientDisconnect(int iClient)
 {
 	char sDisconnectSteamID[FIELD_AUTHID_MAXLENGTH];
@@ -2470,27 +2516,7 @@ public void OnClientDisconnect(int iClient)
 		// remove them from the local array
 		RemoveFromArray(gA_TimedBanLocalList, iBannedArrayIndex);
 		
-		// update steam array
-		// Time problem fixed!
-		char sQuery[QUERY_MAXLENGTH];
-		if (gA_LocalTimeRemaining[iClient] <= ZERO)
-		{
-			// remove steam array
-			Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_DELETE, g_sTimesTableName, sDisconnectSteamID);
-			SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
-
-			Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_EXPIRE, g_sLogTableName, sDisconnectSteamID);
-			SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
-		}
-		else
-		{
-			// update the time
-			Format(sQuery, sizeof(sQuery), CTBAN_QUERY_TIME_UPDATE, g_sTimesTableName, gA_LocalTimeRemaining[iClient], sDisconnectSteamID);
-			SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
-
-			Format(sQuery, sizeof(sQuery), CTBAN_QUERY_LOG_UPDATE, g_sLogTableName, gA_LocalTimeRemaining[iClient], sDisconnectSteamID);
-			SQL_TQuery(gH_BanDatabase, DB_Callback_DisconnectAction, sQuery);
-		}
+		UpdateBanTimeDB(iClient);
 	}
 
 	// if there are no admins left then swap all the !forcect players back to T team!
