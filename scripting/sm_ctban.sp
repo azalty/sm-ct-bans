@@ -24,7 +24,7 @@ Fixed by azalty (STEAM_0:1:57298004 - github.com/azalty/sm-ct-bans)
 // Compilation Settings
 //#define CTBAN_DEBUG
 
-#define PLUGIN_VERSION "2.0.7"
+#define PLUGIN_VERSION "2.0.7 Beta 2"
 
 #include <sourcemod>
 #include <clientprefs>
@@ -2513,10 +2513,10 @@ public void OnClientDisconnect(int iClient)
 	int iBannedArrayIndex = FindValueInArray(gA_TimedBanLocalList, iClient);
 	if (iBannedArrayIndex != VALUE_NOT_FOUND_IN_ARRAY)
 	{
+		UpdateBanTimeDB(iClient);
+		
 		// remove them from the local array
 		RemoveFromArray(gA_TimedBanLocalList, iBannedArrayIndex);
-		
-		UpdateBanTimeDB(iClient);
 	}
 
 	// if there are no admins left then swap all the !forcect players back to T team!
